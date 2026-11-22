@@ -1,0 +1,266 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Shipment;
+use App\Services\WeatherService;
+use Illuminate\Http\Request;
+
+class ShipmentController extends Controller
+{
+    /**
+     * Menampilkan daftar seluruh pengiriman (untuk Operator dengan dukungan filter status)
+     */
+    public function index(Request $request)
+    {
+        $query = Shipment::with(['carrier', 'originLocation', 'destinationLocation', 'user']);
+
+        // Menangkap filter status dari klik kartu dashboard secara fleksibel
+        if ($request->has('status') && !empty($request->status)) {
+            $statusParam = trim(str_replace('+', ' ', $request->status));
+            
+            if (strcasecmp($statusParam, 'In Transit') === 0 || strcasecmp($statusParam, 'IN_TRANSIT') === 0) {
+                $query->where(function($q) {
+                    $q->where('status', 'In Transit')
+                      ->orWhere('status', 'IN_TRANSIT')
+                      ->orWhere('status', 'in_transit');
+                });
+            } elseif (strcasecmp($statusParam, 'Delivered') === 0 || strcasecmp($statusParam, 'DELIVERED') === 0) {
+                $query->where(function($q) {
+                    $q->where('status', 'Delivered')
+                      ->orWhere('status', 'DELIVERED')
+                      ->orWhere('status', 'delivered');
+                });
+            } else {
+                $query->where('status', $statusParam);
+            }
+        }
+
+        $shipments = $query->latest()->get();
+        
+        return view('shipments.index', compact('shipments'));
+    }
+
+    /**
+     * Menampilkan daftar seluruh pengiriman untuk PANEL ADMIN (dengan dukungan filter status)
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Shipment::with(['carrier', 'originLocation', 'destinationLocation', 'user']);
+
+        if ($request->has('status') && !empty($request->status)) {
+            $statusParam = trim(str_replace('+', ' ', $request->status));
+            
+            if (strcasecmp($statusParam, 'In Transit') === 0 || strcasecmp($statusParam, 'IN_TRANSIT') === 0) {
+                $query->where(function($q) {
+                    $q->where('status', 'In Transit')
+                      ->orWhere('status', 'IN_TRANSIT')
+                      ->orWhere('status', 'in_transit');
+                });
+            } elseif (strcasecmp($statusParam, 'Delivered') === 0 || strcasecmp($statusParam, 'DELIVERED') === 0) {
+                $query->where(function($q) {
+                    $q->where('status', 'Delivered')
+                      ->orWhere('status', 'DELIVERED')
+                      ->orWhere('status', 'delivered');
+                });
+            } else {
+                $query->where('status', $statusParam);
+            }
+        }
+
+        $shipments = $query->latest()->get();
+        
+        return view('admin.shipments.index', compact('shipments'));
+    }
+
+    /**
+     * Menampilkan detail resi pengiriman berdasarkan nomor resi (untuk Customer / Public Tracking)
+     */
+    public function track($shipmentNumber, WeatherService $weatherService)
+    {
+        $shipment = Shipment::with([
+            'carrier', 
+            'originLocation', 
+            'destinationLocation', 
+            'trackingEvents.creator', 
+            'exceptions'
+        ])->where('shipment_number', $shipmentNumber)->firstOrFail();
+
+        $weather = null;
+        if ($shipment->destinationLocation) {
+            $weather = $weatherService->getWeather(
+                $shipment->destinationLocation->latitude, 
+                $shipment->destinationLocation->longitude
+            );
+        }
+
+        return view('shipments.track', compact('shipment', 'weather'));
+    }
+
+    /**
+     * Menangani proses pencarian resi dari form publik
+     */
+    public function search(Request $request)
+    {
+        $request->validate([
+            'shipment_number' => 'required|string',
+        ]);
+
+        $shipmentNumber = trim($request->input('shipment_number'));
+        $shipment = Shipment::where('shipment_number', $shipmentNumber)->first();
+
+        if (!$shipment) {
+            return redirect()->back()->with('error', 'Nomor resi ' . $shipmentNumber . ' tidak ditemukan.');
+        }
+
+        return redirect('/track/' . $shipmentNumber);
+    }
+
+    /**
+     * Menampilkan form untuk membuat pengiriman baru (Operator)
+     */
+    public function create()
+    {
+        $carriers = \App\Models\Carrier::all();
+        $locations = \App\Models\Location::all();
+        $customers = \App\Models\User::where('role', 'customer')->get();
+
+        return view('shipments.create', compact('carriers', 'locations', 'customers'));
+    }
+
+    /**
+     * Menampilkan form untuk membuat pengiriman baru khusus ADMIN
+     */
+    public function adminCreate()
+    {
+        $carriers = \App\Models\Carrier::all();
+        $locations = \App\Models\Location::all();
+        $customers = \App\Models\User::where('role', 'customer')->get();
+
+        return view('admin.shipments.create', compact('carriers', 'locations', 'customers'));
+    }
+
+    /**
+     * Menyimpan data pengiriman baru ke database (Operator)
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'shipment_number' => 'required|string|unique:shipments,shipment_number',
+            'user_id' => 'required|exists:users,id',
+            'carrier_id' => 'required|exists:carriers,id',
+            'origin_location_id' => 'required|exists:locations,id',
+            'destination_location_id' => 'required|exists:locations,id|different:origin_location_id',
+            'cargo_type' => 'required|string|max:255',
+            'weight' => 'required|numeric|min:0.1',
+            'volume' => 'required|numeric|min:0.01',
+            'expected_departure_date' => 'required|date',
+            'expected_arrival_date' => 'required|date|after_or_equal:expected_departure_date',
+        ]);
+
+        Shipment::create([
+            'shipment_number' => strtoupper(trim($request->shipment_number)),
+            'user_id' => $request->user_id,
+            'carrier_id' => $request->carrier_id,
+            'origin_location_id' => $request->origin_location_id,
+            'destination_location_id' => $request->destination_location_id,
+            'cargo_type' => $request->cargo_type,
+            'weight' => $request->weight,
+            'volume' => $request->volume,
+            'expected_departure_date' => $request->expected_departure_date,
+            'expected_arrival_date' => $request->expected_arrival_date,
+            'status' => 'In Transit', // Menyesuaikan default status agar terbaca di filter
+        ]);
+
+        return redirect('/shipments')->with('success', 'Pengiriman baru berhasil ditambahkan.');
+    }
+
+    /**
+     * Menyimpan data pengiriman baru khusus ADMIN
+     */
+    public function adminStore(Request $request)
+    {
+        $request->validate([
+            'shipment_number' => 'required|string|unique:shipments,shipment_number',
+            'user_id' => 'required|exists:users,id',
+            'carrier_id' => 'required|exists:carriers,id',
+            'origin_location_id' => 'required|exists:locations,id',
+            'destination_location_id' => 'required|exists:locations,id|different:origin_location_id',
+            'cargo_type' => 'required|string|max:255',
+            'weight' => 'required|numeric|min:0.1',
+            'volume' => 'required|numeric|min:0.01',
+            'expected_departure_date' => 'required|date',
+            'expected_arrival_date' => 'required|date|after_or_equal:expected_departure_date',
+        ]);
+
+        Shipment::create([
+            'shipment_number' => strtoupper(trim($request->shipment_number)),
+            'user_id' => $request->user_id,
+            'carrier_id' => $request->carrier_id,
+            'origin_location_id' => $request->origin_location_id,
+            'destination_location_id' => $request->destination_location_id,
+            'cargo_type' => $request->cargo_type,
+            'weight' => $request->weight,
+            'volume' => $request->volume,
+            'expected_departure_date' => $request->expected_departure_date,
+            'expected_arrival_date' => $request->expected_arrival_date,
+            'status' => 'In Transit',
+        ]);
+
+        return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil ditambahkan.');
+    }
+
+    /**
+     * Menampilkan detail pengiriman untuk admin (View)
+     */
+    public function show($id)
+    {
+        $shipment = Shipment::with(['carrier', 'originLocation', 'destinationLocation', 'user', 'trackingEvents', 'exceptions'])->findOrFail($id);
+        return view('admin.shipments.show', compact('shipment'));
+    }
+
+    /**
+     * Menampilkan form edit pengiriman untuk admin
+     */
+    public function edit($id)
+    {
+        $shipment = Shipment::findOrFail($id);
+        $carriers = \App\Models\Carrier::all();
+        $locations = \App\Models\Location::all();
+        
+        return view('admin.shipments.edit', compact('shipment', 'carriers', 'locations'));
+    }
+
+    /**
+     * Memperbarui data pengiriman oleh admin
+     */
+    public function update(Request $request, $id)
+    {
+        $shipment = Shipment::findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|string',
+            'cargo_type' => 'required|string|max:255',
+            'weight' => 'required|numeric|min:0.1',
+        ]);
+
+        $shipment->update([
+            'cargo_type' => $request->cargo_type,
+            'weight' => $request->weight,
+            'status' => $request->status,
+        ]);
+
+        return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil diperbarui.');
+    }
+
+    /**
+     * Menghapus data pengiriman oleh admin (Delete)
+     */
+    public function destroy($id)
+    {
+        $shipment = Shipment::findOrFail($id);
+        $shipment->delete();
+
+        return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil dihapus.');
+    }
+}
