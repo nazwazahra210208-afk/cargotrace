@@ -1,58 +1,128 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚢 CargoTrace — Maritime Cargo & Logistics Tracking System
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <strong>Sistem Informasi Pelacakan Kargo Maritim & Manajemen Logistik Berbasis Web</strong><br>
+  <em>Light Glassmorphism UI • Navy Accent • Bilingual Support (ID / EN) • Real-Time Weather & Route Tracking</em>
 </p>
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📖 1. Latar Belakang & Tujuan Sistem
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Dalam operasional logistik maritim lintas pelabuhan, keterlambatan informasi posisi kargo, pencatatan rute manual, serta kurangnya visibilitas cuaca di pelabuhan tujuan sering menghambat koordinasi antara operator logistik dan pelanggan.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**CargoTrace** dirancang untuk menjawab kebutuhan tersebut dengan menyediakan satu platform terpusat yang menghubungkan **Administrator**, **Logistics Operator**, dan **Customer**:
+* Mempercepat proses pencatatan dan pemantauan pengiriman kargo antar-pelabuhan dunia.
+* Memberikan transparansi status pengiriman (*Created*, *In Transit*, *Delivered*) serta riwayat *tracking event* dan *exception* secara langsung kepada pelanggan.
+* Menyediakan informasi prakiraan cuaca pada koordinat pelabuhan tujuan sebagai bahan pertimbangan operasional pelayaran.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 👥 2. Hak Akses & Fitur Peran (Role-Based Access)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Sistem membagi fungsionalitas ke dalam tiga peran utama sesuai alur bisnis logistik:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### 🛡️ Administrator (`/admin/dashboard`)
+* **Manajemen Master Lokasi / Pelabuhan (`/admin/locations`)**: Mengelola daftar pelabuhan asal dan tujuan lengkap dengan kota, negara, serta koordinat lintang dan bujur (*latitude* & *longitude*).
+* **Manajemen Master Carrier (`/admin/carriers`)**: Mengelola daftar perusahaan pelayaran (*shipping lines*) dan kode armada.
+* **Manajemen Pengguna (`/admin/users`)**: Mengatur akun dan peran (*Admin*, *Operator*, *Customer*).
+* **Kontrol Penuh Data Pengiriman (`/admin/shipments`)**: Melihat, menambah, memperbarui status/muatan, serta menghapus data pengiriman beserta jejak *tracking* dan *exception*.
 
-## Agentic Development
+### ⚓ Logistics Operator (`/dashboard`)
+* **Dashboard Operasional & Filter Interaktif**: Kartu statistik **Total Pengiriman**, **Dalam Perjalanan (*In Transit*)**, dan **Selesai / Tiba (*Delivered*)** yang dapat diklik langsung untuk menyaring daftar pengiriman di tabel.
+* **Pembuatan & Pembaruan Shipment (`/shipments/create`, `/shipments`)**: Menginput nomor resi, memilih pelanggan, carrier, pelabuhan asal/tujuan, jenis kargo, berat, volume, serta estimasi keberangkatan dan kedatangan (*ETA*).
+* **Pencatatan Tracking Event & Exception**: Memperbarui kronologi perjalanan kapal dan menangani kendala operasional selama pengiriman.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 📦 Customer (`/dashboard`)
+* **Quick Shipment Tracking**: Form pelacakan resi cepat berdasarkan nomor pengiriman (`shipment_number`) langsung dari halaman utama maupun dashboard pelanggan.
+* **Filter Riwayat Kiriman Pribadi**: Kartu statistik interaktif (*Total Shipments*, *In Transit*, *Delivered*) yang memfilter khusus riwayat pengiriman milik pelanggan yang sedang login.
+* **Halaman Detail Pelacakan (`/track/{shipmentNumber}`)**: Menampilkan rute asal ke tujuan, status terkini, lini masa *tracking events*, catatan *exception*, serta informasi kondisi cuaca di pelabuhan tujuan.
 
-```bash
-composer require laravel/boost --dev
+---
 
-php artisan boost:install
-```
+## ✨ 3. Fitur Unggulan & Teknis
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+* **Antarmuka Seragam (*Light Glassmorphism & Navy Theme*)**: Seluruh halaman (Landing Page, Login, Dashboard Admin/Operator/Customer, Daftar & Form Shipment) menggunakan desain *translucent card* yang bersih dan responsif berbasis Tailwind CSS.
+* **Dukungan Multibahasa Penuh (ID / EN)**: Pengalihan bahasa instan antara Bahasa Indonesia dan Bahasa Inggris melalui sesi (`session('locale')`) di seluruh navigasi, banner, kartu statistik, dan tabel.
+* **Penyaringan Status Fleksibel**: Controller mendukung variasi format penulisan status (`In Transit` / `IN_TRANSIT`, `Delivered` / `DELIVERED`) sehingga filter dari kartu dashboard selalu akurat.
+* **Integrasi Layanan Cuaca (`WeatherService`)**: Mengambil data cuaca berdasarkan koordinat `latitude` dan `longitude` lokasi pelabuhan tujuan pada halaman pelacakan resi.
+* **Automated Database Seeder (`DatabaseSeeder.php`)**: Mengisi otomatis akun bawaan, 10 pelabuhan utama dunia & Indonesia, 8 perusahaan pelayaran global, serta data contoh pengiriman.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🗄️ 4. Struktur Entitas Database Utama
 
-## Code of Conduct
+| Tabel / Model | Keterangan & Relasi Utama |
+| :--- | :--- |
+| **`users`** | Menyimpan data pengguna (`name`, `email`, `password`, `role`: `admin`, `operator`, `customer`). |
+| **`locations`** | Master pelabuhan dunia (`name`, `city`, `country`, `latitude`, `longitude`). |
+| **`carriers`** | Master perusahaan pelayaran (`name`, `code`). |
+| **`shipments`** | Data pengiriman utama (`shipment_number`, `user_id`, `carrier_id`, `origin_location_id`, `destination_location_id`, `cargo_type`, `weight`, `volume`, `expected_departure_date`, `expected_arrival_date`, `status`). |
+| **`tracking_events`** | Riwayat pergerakan/status tiap pengiriman (`shipment_id`, catatan lokasi/waktu, pembuat event). |
+| **`exceptions`** | Catatan kendala atau keterlambatan operasional pada pengiriman terkait. |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🛠️ 5. Teknologi yang Digunakan
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+* **Backend:** PHP 8.x & Laravel Framework
+* **Database:** MySQL / MariaDB (`cargotrace_db` via XAMPP)
+* **Frontend:** Blade Templating Engine & Tailwind CSS (CDN)
+* **External Service:** `WeatherService` (Koordinat Pelabuhan Tujuan)
+* **Version Control:** Git & GitHub (`nazwazahra210208-afk/cargotrace`)
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## ⚙️ 6. Panduan Instalasi & Menjalankan Project
+
+1. **Clone Repository**
+   ```bash
+   git clone [https://github.com/nazwazahra210208-afk/cargotrace.git](https://github.com/nazwazahra210208-afk/cargotrace.git)
+   cd cargotrace
+   ```
+
+2. **Install Dependensi PHP**
+   ```bash
+   composer install
+   ```
+
+3. **Konfigurasi Environment**
+   Salin file `.env.example` menjadi `.env`, lalu sesuaikan pengaturan database MySQL (pastikan Apache & MySQL di XAMPP sudah berjalan):
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=cargotrace_db
+   DB_USERNAME=root
+   DB_PASSWORD=
+   ```
+
+4. **Migrasi Database & Seeding Data Awal**
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+
+5. **Jalankan Server Lokal**
+   ```bash
+   php artisan serve
+   ```
+   Buka browser dan akses `http://127.0.0.1:8000`.
+
+---
+
+## 🔐 7. Akun Uji Coba (Hasil Database Seeder)
+
+Seluruh akun bawaan menggunakan password yang sama: **`password123`**
+
+| Peran (Role) | Nama Akun | Email Login |
+| :--- | :--- | :--- |
+| **Admin** | System Administrator | `admin@cargotrace.com` |
+| **Operator** | Logistics Operator | `operator@cargotrace.com` |
+| **Customer** | Luxury Customer | `customer@cargotrace.com` |
+| **Customer** | PT Maju Sejahtera Abadi | `maju@cargotrace.com` |
+| **Customer** | Global Maritime Express | `global@cargotrace.com` |
+| **Customer** | Nusantara Trading Co. | `nusantara@cargotrace.com` |
