@@ -68,7 +68,7 @@
         @endif
 
         @if($errors->any())
-            <div class="bg-red-50 border border-red-300 text-red-800 px-5 py-4 rounded-2xl text-sm space-y-1">
+            <div class="bg-red-50 border border-red-300 text-red-800 px-5 py-4 rounded-2xl text-sm space-y-1 font-semibold">
                 @foreach($errors->all() as $error)
                     <p>• {{ $error }}</p>
                 @endforeach
@@ -77,11 +77,18 @@
 
         @php
             $statusRaw = strtoupper(str_replace(' ', '_', $shipment->status ?? ''));
+            $isDelivered = str_contains($statusRaw, 'DELIVERED');
+            $isInTransit = str_contains($statusRaw, 'TRANSIT');
             $badgeClass = match (true) {
-                str_contains($statusRaw, 'DELIVERED') => 'bg-emerald-100 text-emerald-900 border-emerald-300',
-                str_contains($statusRaw, 'TRANSIT') => 'bg-blue-100 text-blue-900 border-blue-300',
+                $isDelivered => 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                $isInTransit => 'bg-blue-100 text-blue-900 border-blue-300',
                 default => 'bg-amber-100 text-amber-900 border-amber-300',
             };
+
+            $isDelayed = (bool) ($delayInfo['is_delayed'] ?? false);
+            $delayHours = (int) ($delayInfo['delay_hours'] ?? 0);
+            $delaySeverity = $delayInfo['severity'] ?? 'ON_TIME';
+            $delayReason = $delayInfo['reason'] ?? '-';
         @endphp
 
         <!-- Header Ringkasan Pengiriman -->
@@ -94,6 +101,15 @@
                     <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border {{ $badgeClass }}">
                         {{ $shipment->status }}
                     </span>
+                    @if($isDelayed)
+                        <span class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full border bg-rose-100 text-rose-900 border-rose-300">
+                            ⏰ DELAYED (+{{ $delayHours }}H • {{ $delaySeverity }})
+                        </span>
+                    @else
+                        <span class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full border bg-emerald-100 text-emerald-900 border-emerald-300">
+                            ✓ ON SCHEDULE
+                        </span>
+                    @endif
                 </div>
 
                 <h2 class="text-2xl md:text-3xl font-black text-blue-950">
@@ -127,26 +143,64 @@
             </div>
         </div>
 
+        <!-- Banner Analisis ETA & Delay Detection (Business Rule Deterministik) -->
+        <div class="light-glass rounded-2xl p-5 shadow-md border {{ $isDelayed ? 'border-rose-300 bg-rose-50/70' : 'border-emerald-300 bg-emerald-50/60' }} flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-base">{{ $isDelayed ? '🚨' : '⏱️' }}</span>
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider {{ $isDelayed ? 'text-rose-950' : 'text-emerald-950' }}">
+                        {{ session('locale', 'id') == 'en' ? 'ETA & Delay Rule Evaluation' : 'Evaluasi Ketepatan Waktu & Aturan Delay' }}
+                    </h3>
+                    <span class="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full {{ $isDelayed ? 'bg-rose-200 text-rose-950' : 'bg-emerald-200 text-emerald-950' }}">
+                        {{ $isDelayed ? 'DELAYED (' . $delaySeverity . ' • ' . $delayHours . ' jam)' : 'ON TIME' }}
+                    </span>
+                </div>
+                <p class="text-sm font-medium {{ $isDelayed ? 'text-rose-900' : 'text-emerald-900' }}">
+                    {{ $delayReason }}
+                </p>
+            </div>
+            <div class="text-xs font-mono text-slate-600 bg-white/80 border border-slate-200 px-3.5 py-2 rounded-xl">
+                Rule: 0–6h LOW • >6–24h MEDIUM • >24h HIGH
+            </div>
+        </div>
+
         <!-- Panel Operasional Khusus Logistics Operator -->
         @if(auth()->check() && auth()->user()->role === 'operator')
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Form Update Status Pengiriman -->
+                <!-- Form Update Status Pengiriman (Dengan Penguncian Status Terminal Delivered) -->
                 <div class="light-glass rounded-2xl p-6 shadow-md border border-blue-300 space-y-4">
                     <h3 class="text-base font-extrabold text-blue-950 flex items-center space-x-2">
                         <span>🔄</span>
                         <span>{{ session('locale', 'id') == 'en' ? 'Update Shipment Status' : 'Perbarui Status Pengiriman' }}</span>
                     </h3>
-                    <form action="{{ route('operator.shipments.status', $shipment->id) }}" method="POST" class="space-y-3">
-                        @csrf
-                        <select name="status" class="w-full rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-sm font-bold text-blue-950 focus:outline-none focus:ring-2 focus:ring-blue-900">
-                            <option value="Created" {{ $shipment->status == 'Created' ? 'selected' : '' }}>Created</option>
-                            <option value="In Transit" {{ $shipment->status == 'In Transit' ? 'selected' : '' }}>In Transit</option>
-                            <option value="Delivered" {{ $shipment->status == 'Delivered' ? 'selected' : '' }}>Delivered</option>
-                        </select>
-                        <button type="submit" class="w-full bg-blue-950 hover:bg-blue-900 text-white py-2.5 rounded-xl text-sm font-bold shadow transition">
-                            {{ session('locale', 'id') == 'en' ? 'Save Status' : 'Simpan Status' }}
-                        </button>
-                    </form>
+
+                    @if($isDelivered)
+                        <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-4 space-y-1.5">
+                            <p class="text-xs font-extrabold uppercase text-emerald-900 flex items-center gap-1.5">
+                                <span>🔒</span>
+                                <span>{{ session('locale', 'id') == 'en' ? 'Terminal Status Locked' : 'Status Terminal Terkunci' }}</span>
+                            </p>
+                            <p class="text-xs text-emerald-800 leading-relaxed">
+                                {{ session('locale', 'id') == 'en'
+                                    ? 'This shipment has reached DELIVERED status and cannot be reverted to previous states.'
+                                    : 'Pengiriman ini sudah berstatus DELIVERED (final) sehingga tidak dapat dikembalikan ke status sebelumnya.' }}
+                            </p>
+                        </div>
+                    @else
+                        <form action="{{ route('operator.shipments.status', $shipment->id) }}" method="POST" class="space-y-3">
+                            @csrf
+                            <select name="status" class="w-full rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-sm font-bold text-blue-950 focus:outline-none focus:ring-2 focus:ring-blue-900">
+                                @if(!$isInTransit)
+                                    <option value="Created" {{ $shipment->status == 'Created' ? 'selected' : '' }}>Created</option>
+                                @endif
+                                <option value="In Transit" {{ $shipment->status == 'In Transit' ? 'selected' : '' }}>In Transit</option>
+                                <option value="Delivered" {{ $shipment->status == 'Delivered' ? 'selected' : '' }}>Delivered</option>
+                            </select>
+                            <button type="submit" class="w-full bg-blue-950 hover:bg-blue-900 text-white py-2.5 rounded-xl text-sm font-bold shadow transition">
+                                {{ session('locale', 'id') == 'en' ? 'Save Status' : 'Simpan Status' }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
 
                 <!-- Form Tambah Tracking Event -->
@@ -182,7 +236,7 @@
                     </h3>
                     <form action="{{ url('/shipments/' . $shipment->id . '/exceptions') }}" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         @csrf
-                        <input type="text" name="exception_type" required placeholder="{{ session('locale', 'id') == 'en' ? 'Exception type (e.g. Weather Delay / Customs)' : 'Jenis kendala (mis. Cuaca Buruk / Pemeriksaan Bea Cukai)' }}"
+                        <input type="text" name="exception_type" required placeholder="{{ session('locale', 'id') == 'en' ? 'Exception type (e.g. WEATHER_DELAY / CUSTOMS_HOLD)' : 'Jenis kendala (mis. WEATHER_DELAY / CUSTOMS_HOLD)' }}"
                             class="rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600">
 
                         <select name="severity" required class="rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600">

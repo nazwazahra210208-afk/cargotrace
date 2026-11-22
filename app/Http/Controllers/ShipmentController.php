@@ -6,6 +6,7 @@ use App\Models\Shipment;
 use App\Models\TrackingEvent;
 use App\Models\AuditLog;
 use App\Services\WeatherService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +26,66 @@ class ShipmentController extends Controller
                 'details' => $details,
             ]);
         }
+    }
+
+    /**
+     * Business Rule: Menghitung status keterlambatan (ETA & Delay Detection) secara deterministik
+     * Threshold:
+     * - 0–6 jam   : LOW
+     * - >6–24 jam : MEDIUM
+     * - >24 jam   : HIGH
+     */
+    private function evaluateDelayStatus(Shipment $shipment): array
+    {
+        if (empty($shipment->expected_arrival_date)) {
+            return [
+                'is_delayed' => false,
+                'delay_hours' => 0,
+                'severity' => null,
+                'reason' => 'Tanggal estimasi tiba (ETA) belum ditetapkan.',
+                'reference_time' => null,
+            ];
+        }
+
+        // Batas akhir hari pada tanggal ETA (23:59:59)
+        $expectedArrival = Carbon::parse($shipment->expected_arrival_date)->endOfDay();
+
+        // Jika sudah Delivered, bandingkan ETA dengan waktu penyelesaian pengiriman
+        if (strcasecmp((string) $shipment->status, 'Delivered') === 0) {
+            $comparisonTime = $shipment->updated_at ? Carbon::parse($shipment->updated_at) : now();
+            $contextLabel = 'waktu kedatangan aktual';
+        } else {
+            $comparisonTime = now();
+            $contextLabel = 'waktu pengecekan saat ini';
+        }
+
+        if ($comparisonTime->gt($expectedArrival)) {
+            $delayHours = max(1, (int) ceil($expectedArrival->diffInMinutes($comparisonTime) / 60));
+
+            $severity = match (true) {
+                $delayHours <= 6 => 'LOW',
+                $delayHours <= 24 => 'MEDIUM',
+                default => 'HIGH',
+            };
+
+            return [
+                'is_delayed' => true,
+                'delay_hours' => $delayHours,
+                'severity' => $severity,
+                'reason' => "Melewati batas ETA ({$shipment->expected_arrival_date}) sebesar {$delayHours} jam berdasarkan {$contextLabel}.",
+                'reference_time' => $comparisonTime->format('d M Y H:i'),
+            ];
+        }
+
+        return [
+            'is_delayed' => false,
+            'delay_hours' => 0,
+            'severity' => 'ON_TIME',
+            'reason' => strcasecmp((string) $shipment->status, 'Delivered') === 0
+                ? 'Pengiriman tiba sesuai atau lebih cepat dari jadwal ETA.'
+                : 'Pengiriman masih berada dalam rentang jadwal ETA yang ditentukan.',
+            'reference_time' => $comparisonTime->format('d M Y H:i'),
+        ];
     }
 
     /**
@@ -112,7 +173,9 @@ class ShipmentController extends Controller
             );
         }
 
-        return view('shipments.track', compact('shipment', 'weather'));
+        $delayInfo = $this->evaluateDelayStatus($shipment);
+
+        return view('shipments.track', compact('shipment', 'weather', 'delayInfo'));
     }
 
     /**
@@ -189,16 +252,16 @@ class ShipmentController extends Controller
             'volume' => $request->volume,
             'expected_departure_date' => $request->expected_departure_date,
             'expected_arrival_date' => $request->expected_arrival_date,
-            'status' => 'In Transit',
+            'status' => 'Created',
         ]);
 
         $this->logAudit('CREATE', 'Shipment', 'Operator membuat pengiriman baru ' . $shipment->shipment_number);
 
-        return redirect('/shipments')->with('success', 'Pengiriman baru berhasil ditambahkan.');
+        return redirect('/shipments')->with('success', 'Pengiriman baru berhasil ditambahkan dengan status Created.');
     }
 
     /**
-     * Memperbarui status pengiriman oleh Logistics Operator
+     * Memperbarui status pengiriman oleh Logistics Operator dengan validasi transisi lifecycle
      */
     public function operatorUpdateStatus(Request $request, $id)
     {
@@ -208,14 +271,30 @@ class ShipmentController extends Controller
             'status' => 'required|in:Created,In Transit,Delivered',
         ]);
 
-        $oldStatus = $shipment->status;
+        $currentStatus = $shipment->status;
+        $newStatus = $request->status;
+
+        // Business Rule: Status terminal 'Delivered' tidak boleh dikembalikan ke status sebelumnya
+        if (strcasecmp($currentStatus, 'Delivered') === 0 && strcasecmp($newStatus, 'Delivered') !== 0) {
+            return redirect()->back()->withErrors([
+                'status' => 'Transisi ditolak: Pengiriman berstatus DELIVERED bersifat final (terminal) dan tidak dapat dikembalikan ke status ' . $newStatus . '.',
+            ]);
+        }
+
+        // Business Rule: Status tidak boleh mundur dari 'In Transit' ke 'Created'
+        if (strcasecmp($currentStatus, 'In Transit') === 0 && strcasecmp($newStatus, 'Created') === 0) {
+            return redirect()->back()->withErrors([
+                'status' => 'Transisi ditolak: Pengiriman yang sudah In Transit tidak dapat dikembalikan ke status Created.',
+            ]);
+        }
+
         $shipment->update([
-            'status' => $request->status,
+            'status' => $newStatus,
         ]);
 
-        $this->logAudit('UPDATE', 'Shipment', 'Status ' . $shipment->shipment_number . ' diubah dari ' . $oldStatus . ' menjadi ' . $request->status);
+        $this->logAudit('UPDATE', 'Shipment', 'Status ' . $shipment->shipment_number . ' diubah dari ' . $currentStatus . ' menjadi ' . $newStatus);
 
-        return redirect()->back()->with('success', 'Status pengiriman berhasil diperbarui menjadi ' . $request->status . '.');
+        return redirect()->back()->with('success', 'Status pengiriman berhasil diperbarui menjadi ' . $newStatus . '.');
     }
 
     /**
@@ -253,6 +332,9 @@ class ShipmentController extends Controller
         }
         if (in_array('location', $columns)) {
             $data['location'] = $request->location_name;
+        }
+        if (in_array('location_description', $columns)) {
+            $data['location_description'] = $request->location_name ?: ($request->description ?: '-');
         }
         if (in_array('description', $columns)) {
             $data['description'] = $request->description;
@@ -303,7 +385,7 @@ class ShipmentController extends Controller
             'volume' => $request->volume,
             'expected_departure_date' => $request->expected_departure_date,
             'expected_arrival_date' => $request->expected_arrival_date,
-            'status' => 'In Transit',
+            'status' => 'Created',
         ]);
 
         $this->logAudit('CREATE', 'Shipment', 'Admin membuat pengiriman baru ' . $shipment->shipment_number);
@@ -333,7 +415,7 @@ class ShipmentController extends Controller
     }
 
     /**
-     * Memperbarui data pengiriman oleh admin
+     * Memperbarui data pengiriman oleh admin dengan validasi status terminal
      */
     public function update(Request $request, $id)
     {
@@ -344,6 +426,12 @@ class ShipmentController extends Controller
             'cargo_type' => 'required|string|max:255',
             'weight' => 'required|numeric|min:0.1',
         ]);
+
+        if (strcasecmp($shipment->status, 'Delivered') === 0 && strcasecmp($request->status, 'Delivered') !== 0) {
+            return redirect()->back()->withErrors([
+                'status' => 'Transisi ditolak: Pengiriman berstatus DELIVERED bersifat final dan tidak dapat dikembalikan ke status ' . $request->status . '.',
+            ]);
+        }
 
         $shipment->update([
             'cargo_type' => $request->cargo_type,

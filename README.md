@@ -1,128 +1,118 @@
-# 🚢 CargoTrace — Maritime Cargo & Logistics Tracking System
+# CargoTrace — Global Shipment Visibility & Tracking Platform
 
-<p align="center">
-  <strong>Sistem Informasi Pelacakan Kargo Maritim & Manajemen Logistik Berbasis Web</strong><br>
-  <em>Light Glassmorphism UI • Navy Accent • Bilingual Support (ID / EN) • Real-Time Weather & Route Tracking</em>
-</p>
+CargoTrace is a web-based maritime and cargo shipment visibility platform built with **Laravel**, **MySQL**, **Tailwind CSS**, **Leaflet.js**, and **REST API** integration. It enables logistics operators, administrators, and customers to track shipments, monitor real-time route coordinates, evaluate deterministic ETA delays, manage operational exceptions, and inspect system audit logs.
 
 ---
 
-## 📖 1. Latar Belakang & Tujuan Sistem
-
-Dalam operasional logistik maritim lintas pelabuhan, keterlambatan informasi posisi kargo, pencatatan rute manual, serta kurangnya visibilitas cuaca di pelabuhan tujuan sering menghambat koordinasi antara operator logistik dan pelanggan.
-
-**CargoTrace** dirancang untuk menjawab kebutuhan tersebut dengan menyediakan satu platform terpusat yang menghubungkan **Administrator**, **Logistics Operator**, dan **Customer**:
-* Mempercepat proses pencatatan dan pemantauan pengiriman kargo antar-pelabuhan dunia.
-* Memberikan transparansi status pengiriman (*Created*, *In Transit*, *Delivered*) serta riwayat *tracking event* dan *exception* secara langsung kepada pelanggan.
-* Menyediakan informasi prakiraan cuaca pada koordinat pelabuhan tujuan sebagai bahan pertimbangan operasional pelayaran.
+## Problem & Solution
+- **Problem:** Shipment status, route progress, and delay exceptions are often fragmented across carriers, leaving customers and operators without a single source of truth.
+- **Solution:** CargoTrace centralizes shipment lifecycle management (`Created` → `In Transit` → `Delivered`), chronological tracking events, interactive maritime maps, destination port weather forecasts, exception reporting, role-based access control, and JSON REST APIs.
 
 ---
 
-## 👥 2. Hak Akses & Fitur Peran (Role-Based Access)
-
-Sistem membagi fungsionalitas ke dalam tiga peran utama sesuai alur bisnis logistik:
-
-### 🛡️ Administrator (`/admin/dashboard`)
-* **Manajemen Master Lokasi / Pelabuhan (`/admin/locations`)**: Mengelola daftar pelabuhan asal dan tujuan lengkap dengan kota, negara, serta koordinat lintang dan bujur (*latitude* & *longitude*).
-* **Manajemen Master Carrier (`/admin/carriers`)**: Mengelola daftar perusahaan pelayaran (*shipping lines*) dan kode armada.
-* **Manajemen Pengguna (`/admin/users`)**: Mengatur akun dan peran (*Admin*, *Operator*, *Customer*).
-* **Kontrol Penuh Data Pengiriman (`/admin/shipments`)**: Melihat, menambah, memperbarui status/muatan, serta menghapus data pengiriman beserta jejak *tracking* dan *exception*.
-
-### ⚓ Logistics Operator (`/dashboard`)
-* **Dashboard Operasional & Filter Interaktif**: Kartu statistik **Total Pengiriman**, **Dalam Perjalanan (*In Transit*)**, dan **Selesai / Tiba (*Delivered*)** yang dapat diklik langsung untuk menyaring daftar pengiriman di tabel.
-* **Pembuatan & Pembaruan Shipment (`/shipments/create`, `/shipments`)**: Menginput nomor resi, memilih pelanggan, carrier, pelabuhan asal/tujuan, jenis kargo, berat, volume, serta estimasi keberangkatan dan kedatangan (*ETA*).
-* **Pencatatan Tracking Event & Exception**: Memperbarui kronologi perjalanan kapal dan menangani kendala operasional selama pengiriman.
-
-### 📦 Customer (`/dashboard`)
-* **Quick Shipment Tracking**: Form pelacakan resi cepat berdasarkan nomor pengiriman (`shipment_number`) langsung dari halaman utama maupun dashboard pelanggan.
-* **Filter Riwayat Kiriman Pribadi**: Kartu statistik interaktif (*Total Shipments*, *In Transit*, *Delivered*) yang memfilter khusus riwayat pengiriman milik pelanggan yang sedang login.
-* **Halaman Detail Pelacakan (`/track/{shipmentNumber}`)**: Menampilkan rute asal ke tujuan, status terkini, lini masa *tracking events*, catatan *exception*, serta informasi kondisi cuaca di pelabuhan tujuan.
+## Core Features
+1. **Role-Based Access Control (RBAC):**
+   - **Administrator:** Manage users, carriers, locations, shipments, and inspect system audit logs.
+   - **Logistics Operator:** Create shipments, enforce forward-only lifecycle transitions, record chronological tracking events, and report operational exceptions.
+   - **Customer:** Filter and inspect owned shipments, view interactive maritime route maps, weather forecasts, timelines, and active exceptions.
+   - **Public Tracking (`/track`):** Instant shipment lookup by tracking number without requiring login.
+2. **Deterministic Business Rules:**
+   - **Terminal Status Lock:** Shipments marked as `Delivered` cannot be reverted to earlier states.
+   - **ETA & Delay Evaluation:** Automatically compares `expected_arrival_date` against actual/current timestamps and classifies delays (`0–6h: LOW`, `>6–24h: MEDIUM`, `>24h: HIGH`).
+3. **Interactive Map & External Weather Integration:**
+   - **Leaflet.js + OpenStreetMap** plotting origin and destination port coordinates with route polylines.
+   - **WeatherService** via Laravel HTTP Client with graceful fallback handling.
+4. **RESTful JSON API (`/api/*`):**
+   - Bearer token authentication (`/api/register`, `/api/login`, `/api/logout`, `/api/user`) and role-protected CRUD endpoints for shipments, tracking events, carriers, locations, and exceptions.
 
 ---
 
-## ✨ 3. Fitur Unggulan & Teknis
-
-* **Antarmuka Seragam (*Light Glassmorphism & Navy Theme*)**: Seluruh halaman (Landing Page, Login, Dashboard Admin/Operator/Customer, Daftar & Form Shipment) menggunakan desain *translucent card* yang bersih dan responsif berbasis Tailwind CSS.
-* **Dukungan Multibahasa Penuh (ID / EN)**: Pengalihan bahasa instan antara Bahasa Indonesia dan Bahasa Inggris melalui sesi (`session('locale')`) di seluruh navigasi, banner, kartu statistik, dan tabel.
-* **Penyaringan Status Fleksibel**: Controller mendukung variasi format penulisan status (`In Transit` / `IN_TRANSIT`, `Delivered` / `DELIVERED`) sehingga filter dari kartu dashboard selalu akurat.
-* **Integrasi Layanan Cuaca (`WeatherService`)**: Mengambil data cuaca berdasarkan koordinat `latitude` dan `longitude` lokasi pelabuhan tujuan pada halaman pelacakan resi.
-* **Automated Database Seeder (`DatabaseSeeder.php`)**: Mengisi otomatis akun bawaan, 10 pelabuhan utama dunia & Indonesia, 8 perusahaan pelayaran global, serta data contoh pengiriman.
+## Tech Stack
+- **Backend:** PHP 8.2+, Laravel 12, Eloquent ORM, MySQL 8+
+- **Frontend:** Blade Templates, Tailwind CSS, Vanilla JavaScript
+- **Maps & External Services:** Leaflet.js, OpenStreetMap Tiles, Open-Meteo / Weather HTTP Client
+- **Testing:** PHPUnit Feature Tests
 
 ---
 
-## 🗄️ 4. Struktur Entitas Database Utama
+## Installation & Setup
 
-| Tabel / Model | Keterangan & Relasi Utama |
-| :--- | :--- |
-| **`users`** | Menyimpan data pengguna (`name`, `email`, `password`, `role`: `admin`, `operator`, `customer`). |
-| **`locations`** | Master pelabuhan dunia (`name`, `city`, `country`, `latitude`, `longitude`). |
-| **`carriers`** | Master perusahaan pelayaran (`name`, `code`). |
-| **`shipments`** | Data pengiriman utama (`shipment_number`, `user_id`, `carrier_id`, `origin_location_id`, `destination_location_id`, `cargo_type`, `weight`, `volume`, `expected_departure_date`, `expected_arrival_date`, `status`). |
-| **`tracking_events`** | Riwayat pergerakan/status tiap pengiriman (`shipment_id`, catatan lokasi/waktu, pembuat event). |
-| **`exceptions`** | Catatan kendala atau keterlambatan operasional pada pengiriman terkait. |
-
----
-
-## 🛠️ 5. Teknologi yang Digunakan
-
-* **Backend:** PHP 8.x & Laravel Framework
-* **Database:** MySQL / MariaDB (`cargotrace_db` via XAMPP)
-* **Frontend:** Blade Templating Engine & Tailwind CSS (CDN)
-* **External Service:** `WeatherService` (Koordinat Pelabuhan Tujuan)
-* **Version Control:** Git & GitHub (`nazwazahra210208-afk/cargotrace`)
-
----
-
-## ⚙️ 6. Panduan Instalasi & Menjalankan Project
-
-1. **Clone Repository**
-   ```bash
+1. **Clone the repository:**
+   
+```bash
    git clone [https://github.com/nazwazahra210208-afk/cargotrace.git](https://github.com/nazwazahra210208-afk/cargotrace.git)
    cd cargotrace
-   ```
+   
+```
 
-2. **Install Dependensi PHP**
-   ```bash
+2. **Install PHP dependencies:**
+   
+```bash
    composer install
-   ```
+   
+```
 
-3. **Konfigurasi Environment**
-   Salin file `.env.example` menjadi `.env`, lalu sesuaikan pengaturan database MySQL (pastikan Apache & MySQL di XAMPP sudah berjalan):
-   ```bash
+3. **Configure environment variables:**
+   
+```bash
    cp .env.example .env
    php artisan key:generate
-   ```
-   ```env
-   DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=cargotrace_db
-   DB_USERNAME=root
-   DB_PASSWORD=
-   ```
+   
+```
+   Update `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in `.env` to match your local MySQL configuration.
 
-4. **Migrasi Database & Seeding Data Awal**
-   ```bash
-   php artisan migrate:fresh --seed
-   ```
+4. **Run database migrations and seeders:**
+   
+```bash
+   php artisan migrate --seed
+   
+```
 
-5. **Jalankan Server Lokal**
-   ```bash
+5. **Start the local development server:**
+   
+```bash
    php artisan serve
-   ```
-   Buka browser dan akses `http://127.0.0.1:8000`.
+   
+```
+   Open `http://127.0.0.1:8000` in your browser.
 
 ---
 
-## 🔐 7. Akun Uji Coba (Hasil Database Seeder)
-
-Seluruh akun bawaan menggunakan password yang sama: **`password123`**
-
-| Peran (Role) | Nama Akun | Email Login |
+## Demo Accounts
+| Role | Email | Password |
 | :--- | :--- | :--- |
-| **Admin** | System Administrator | `admin@cargotrace.com` |
-| **Operator** | Logistics Operator | `operator@cargotrace.com` |
-| **Customer** | Luxury Customer | `customer@cargotrace.com` |
-| **Customer** | PT Maju Sejahtera Abadi | `maju@cargotrace.com` |
-| **Customer** | Global Maritime Express | `global@cargotrace.com` |
-| **Customer** | Nusantara Trading Co. | `nusantara@cargotrace.com` |
+| **Administrator** | `admin@cargotrace.com` | `password` |
+| **Logistics Operator** | `operator@cargotrace.com` | `password` |
+| **Customer** | `customer@cargotrace.com` | `password` |
+
+*(Adjust credentials if customized in `DatabaseSeeder.php`.)*
+
+---
+
+## REST API Endpoints Summary
+- `POST /api/register` — Register a new customer account and receive a Bearer token
+- `POST /api/login` — Authenticate user and issue a Bearer token
+- `POST /api/logout` — Revoke active Bearer token
+- `GET /api/user` — Retrieve authenticated user profile
+- `GET /api/shipments` & `POST /api/shipments` — List (paginated & filtered) or create shipments
+- `GET /api/shipments/{id}`, `PUT/PATCH /api/shipments/{id}`, `DELETE /api/shipments/{id}` — Inspect, update, or delete shipment
+- `GET /api/shipments/{id}/tracking` & `POST /api/shipments/{id}/tracking` — View or append tracking events
+- `GET /api/carriers` & `POST /api/carriers` — List or create carriers
+- `GET /api/locations` & `POST /api/locations` — List or create port locations
+- `GET /api/shipments/{id}/exceptions`, `POST /api/shipments/{id}/exceptions`, `PATCH /api/exceptions/{id}` — Manage operational exceptions
+
+---
+
+## Running Automated Tests
+Execute the PHPUnit feature test suite using:
+```bash
+php artisan test --filter=CargoTraceTest
+```
+
+---
+
+## Third-Party Libraries & Attributions
+- **Laravel Framework** (MIT License)
+- **Tailwind CSS** (MIT License)
+- **Leaflet.js** (BSD-2-Clause License) & **OpenStreetMap** contributors
+- **Open-Meteo Weather API** for destination port weather data
