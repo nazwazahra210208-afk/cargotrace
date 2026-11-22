@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ session('locale') == 'en' ? 'Create Shipment - CargoTrace' : 'Tambah Pengiriman - CargoTrace' }}</title>
+    <title>{{ session('locale', 'id') == 'en' ? 'Add Shipment - CargoTrace' : 'Tambah Pengiriman - CargoTrace' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .light-glass {
@@ -21,7 +21,7 @@
             <div class="flex items-center space-x-3">
                 <div class="bg-blue-950 text-white p-2 rounded-xl shadow">🚢</div>
                 <h1 class="text-xl font-extrabold tracking-wide text-blue-950">
-                    CargoTrace <span class="text-blue-700 font-medium">— {{ session('locale') == 'en' ? 'Create Shipment' : 'Tambah Shipment' }}</span>
+                    CargoTrace <span class="text-blue-700 font-medium">— {{ session('locale', 'id') == 'en' ? 'Add Shipment' : 'Tambah Shipment' }}</span>
                 </h1>
             </div>
 
@@ -29,52 +29,63 @@
                 <div class="flex space-x-2 text-sm bg-white/90 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-inner font-semibold">
                     <a href="{{ route('admin.lang', 'id') }}" class="{{ session('locale', 'id') == 'id' ? 'text-blue-900 underline' : 'text-slate-400' }}">ID</a>
                     <span class="text-blue-200">|</span>
-                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'en', 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
+                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
                 </div>
 
                 <a href="{{ url('/shipments') }}" class="bg-blue-950 hover:bg-blue-900 text-white px-5 py-2 rounded-xl text-sm font-semibold transition shadow-md">
-                    {{ session('locale') == 'en' ? 'Back' : 'Kembali' }}
+                    {{ session('locale', 'id') == 'en' ? 'Back' : 'Kembali' }}
                 </a>
             </div>
         </div>
     </nav>
 
-    <!-- Content Container -->
-    <div class="container mx-auto max-w-3xl p-6 relative z-10">
-        <div class="light-glass rounded-3xl p-8 shadow-2xl border border-blue-200">
+    <!-- Main Container -->
+    <div class="container mx-auto p-6 max-w-3xl space-y-6 relative z-10">
+        @if($errors->any())
+            <div class="bg-red-50 border border-red-300 text-red-800 p-4 rounded-2xl text-sm space-y-1 shadow-sm">
+                @foreach($errors->all() as $error)
+                    <p>• {{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="light-glass rounded-3xl p-8 md:p-10 shadow-xl border border-blue-200">
             <h2 class="text-2xl font-black text-blue-950 mb-6">
-                {{ session('locale') == 'en' ? 'New Shipment Form' : 'Formulir Tambah Pengiriman Baru' }}
+                {{ session('locale', 'id') == 'en' ? 'New Shipment Form' : 'Formulir Tambah Pengiriman Baru' }}
             </h2>
 
             <form action="{{ url('/shipments') }}" method="POST" class="space-y-5">
                 @csrf
 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">
-                        {{ session('locale') == 'en' ? 'Tracking Number' : 'Nomor Resi' }}
+                    <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                        {{ session('locale', 'id') == 'en' ? 'TRACKING / SHIPMENT NUMBER' : 'NOMOR RESI' }}
                     </label>
-                    <input type="text" name="tracking_number" placeholder="{{ session('locale') == 'en' ? 'E.G., CRG-112233' : 'CONTOH: CRG-112233' }}" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium">
+                    <input type="text" name="shipment_number" value="{{ old('shipment_number') }}" required placeholder="CONTOH: CRG-2026-003"
+                        class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-900">
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">Customer</label>
-                        <select name="user_id" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium text-slate-800">
-                            <option value="">{{ session('locale') == 'en' ? '-- Select Customer --' : '-- Pilih Customer --' }}</option>
-                            @foreach(\App\Models\User::where('role', 'customer')->get() as $cust)
-                                <option value="{{ $cust->id }}">{{ $cust->name }} ({{ $cust->email }})</option>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">CUSTOMER</label>
+                        <select name="user_id" required class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            <option value="">-- Pilih Customer --</option>
+                            @foreach($customers as $customer)
+                                <option value="{{ $customer->id }}" {{ old('user_id') == $customer->id ? 'selected' : '' }}>
+                                    {{ $customer->name }} ({{ $customer->email }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">
-                            {{ session('locale') == 'en' ? 'Carrier' : 'Carrier (Kurir)' }}
-                        </label>
-                        <select name="carrier_id" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium text-slate-800">
-                            <option value="">{{ session('locale') == 'en' ? '-- Select Carrier --' : '-- Pilih Carrier --' }}</option>
-                            @foreach(\App\Models\Carrier::all() as $car)
-                                <option value="{{ $car->id }}">{{ $car->name }}</option>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">CARRIER (KURIR)</label>
+                        <select name="carrier_id" required class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            <option value="">-- Pilih Carrier --</option>
+                            @foreach($carriers as $carrier)
+                                <option value="{{ $carrier->id }}" {{ old('carrier_id') == $carrier->id ? 'selected' : '' }}>
+                                    {{ $carrier->name }} ({{ $carrier->code }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -82,33 +93,84 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">
-                            {{ session('locale') == 'en' ? 'Origin Location' : 'Lokasi Asal' }}
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'ORIGIN PORT' : 'PELABUHAN ASAL' }}
                         </label>
-                        <input type="text" name="origin" placeholder="{{ session('locale') == 'en' ? 'E.g., Tanjung Priok Port' : 'Contoh: Pelabuhan Tanjung Priok' }}" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium">
+                        <select name="origin_location_id" required class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            <option value="">-- Pilih Pelabuhan Asal --</option>
+                            @foreach($locations as $location)
+                                <option value="{{ $location->id }}" {{ old('origin_location_id') == $location->id ? 'selected' : '' }}>
+                                    {{ $location->name }} ({{ $location->city }}, {{ $location->country }})
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">
-                            {{ session('locale') == 'en' ? 'Destination Location' : 'Lokasi Tujuan' }}
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'DESTINATION PORT' : 'PELABUHAN TUJUAN' }}
                         </label>
-                        <input type="text" name="destination" placeholder="{{ session('locale') == 'en' ? 'E.g., Singapore Port' : 'Contoh: Pelabuhan Singapura' }}" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium">
+                        <select name="destination_location_id" required class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            <option value="">-- Pilih Pelabuhan Tujuan --</option>
+                            @foreach($locations as $location)
+                                <option value="{{ $location->id }}" {{ old('destination_location_id') == $location->id ? 'selected' : '' }}>
+                                    {{ $location->name }} ({{ $location->city }}, {{ $location->country }})
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 mb-2">
-                        {{ session('locale') == 'en' ? 'Cargo Type' : 'Jenis Barang (Cargo Type)' }}
+                    <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                        {{ session('locale', 'id') == 'en' ? 'CARGO TYPE' : 'JENIS BARANG (CARGO TYPE)' }}
                     </label>
-                    <input type="text" name="cargo_type" placeholder="{{ session('locale') == 'en' ? 'E.g., Machinery Spare Parts' : 'Contoh: Suku Cadang Mesin' }}" required class="w-full bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium">
+                    <input type="text" name="cargo_type" value="{{ old('cargo_type') }}" required placeholder="Contoh: Suku Cadang Mesin"
+                        class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
                 </div>
 
-                <div class="pt-4 flex justify-end space-x-3">
-                    <a href="{{ url('/shipments') }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-3 rounded-xl text-sm font-bold transition shadow-sm">
-                        {{ session('locale') == 'en' ? 'Cancel' : 'Batal' }}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'WEIGHT (KG)' : 'BERAT KARGO (KG)' }}
+                        </label>
+                        <input type="number" step="0.01" min="0.1" name="weight" value="{{ old('weight') }}" required placeholder="Contoh: 1250"
+                            class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'VOLUME (M³)' : 'VOLUME KARGO (M³)' }}
+                        </label>
+                        <input type="number" step="0.01" min="0.01" name="volume" value="{{ old('volume') }}" required placeholder="Contoh: 15.5"
+                            class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'EXPECTED DEPARTURE' : 'ESTIMASI KEBERANGKATAN' }}
+                        </label>
+                        <input type="date" name="expected_departure_date" value="{{ old('expected_departure_date', date('Y-m-d')) }}" required
+                            class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-blue-950 mb-2">
+                            {{ session('locale', 'id') == 'en' ? 'EXPECTED ARRIVAL (ETA)' : 'ESTIMASI TIBA (ETA)' }}
+                        </label>
+                        <input type="date" name="expected_arrival_date" value="{{ old('expected_arrival_date', date('Y-m-d', strtotime('+5 days'))) }}" required
+                            class="w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+                </div>
+
+                <div class="flex justify-end items-center gap-3 pt-4">
+                    <a href="{{ url('/shipments') }}" class="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-100 transition">
+                        {{ session('locale', 'id') == 'en' ? 'Cancel' : 'Batal' }}
                     </a>
-                    <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white px-6 py-3 rounded-xl text-sm font-bold transition shadow-md">
-                        {{ session('locale') == 'en' ? 'Save Shipment' : 'Simpan Pengiriman' }}
+                    <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white px-7 py-3 rounded-xl text-sm font-bold shadow-lg transition">
+                        {{ session('locale', 'id') == 'en' ? 'Save Shipment' : 'Simpan Pengiriman' }}
                     </button>
                 </div>
             </form>

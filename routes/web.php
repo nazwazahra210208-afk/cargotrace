@@ -26,7 +26,7 @@ Route::get('/lang/{locale}', function ($locale) {
 // Halaman utama (root) menampilkan form login (GET)
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 
-// TAMBAHKAN BARIS INI: Menangani POST langsung dari form root (/)
+// Menangani POST langsung dari form root (/)
 Route::post('/', [AuthController::class, 'login']);
 
 // Rute GET dan POST cadangan untuk login & logout
@@ -47,13 +47,22 @@ Route::get('/track/{shipmentNumber}', [ShipmentController::class, 'track']);
 
 
 // ==========================================
-// RUTE YANG DILINDUNGI (Operator)
+// RUTE YANG DILINDUNGI (Semua User Login: Operator & Customer)
+// ==========================================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+});
+
+
+// ==========================================
+// RUTE YANG DILINDUNGI (Khusus Operator)
 // ==========================================
 Route::middleware(['auth', 'role:operator'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/shipments', [ShipmentController::class, 'index']);
     Route::get('/shipments/create', [ShipmentController::class, 'create']);
     Route::post('/shipments', [ShipmentController::class, 'store']);
+    Route::post('/shipments/{id}/status', [ShipmentController::class, 'operatorUpdateStatus'])->name('operator.shipments.status');
+    Route::post('/shipments/{id}/tracking-events', [ShipmentController::class, 'storeTrackingEvent'])->name('operator.shipments.events');
     Route::post('/shipments/{id}/exceptions', [ShipmentExceptionController::class, 'store']);
 });
 

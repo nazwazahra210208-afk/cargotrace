@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shipment;
+use App\Models\TrackingEvent;
 use App\Services\WeatherService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class ShipmentController extends Controller
 {
@@ -15,7 +18,6 @@ class ShipmentController extends Controller
     {
         $query = Shipment::with(['carrier', 'originLocation', 'destinationLocation', 'user']);
 
-        // Menangkap filter status dari klik kartu dashboard secara fleksibel
         if ($request->has('status') && !empty($request->status)) {
             $statusParam = trim(str_replace('+', ' ', $request->status));
             
@@ -74,22 +76,22 @@ class ShipmentController extends Controller
     }
 
     /**
-     * Menampilkan detail resi pengiriman berdasarkan nomor resi (untuk Customer / Public Tracking)
+     * Menampilkan detail resi pengiriman berdasarkan nomor resi
      */
     public function track($shipmentNumber, WeatherService $weatherService)
     {
         $shipment = Shipment::with([
-            'carrier', 
-            'originLocation', 
-            'destinationLocation', 
-            'trackingEvents.creator', 
+            'carrier',
+            'originLocation',
+            'destinationLocation',
+            'trackingEvents.creator',
             'exceptions'
         ])->where('shipment_number', $shipmentNumber)->firstOrFail();
 
         $weather = null;
         if ($shipment->destinationLocation) {
             $weather = $weatherService->getWeather(
-                $shipment->destinationLocation->latitude, 
+                $shipment->destinationLocation->latitude,
                 $shipment->destinationLocation->longitude
             );
         }
@@ -106,14 +108,16 @@ class ShipmentController extends Controller
             'shipment_number' => 'required|string',
         ]);
 
-        $shipmentNumber = trim($request->input('shipment_number'));
+        $shipmentNumber = strtoupper(trim($request->input('shipment_number')));
         $shipment = Shipment::where('shipment_number', $shipmentNumber)->first();
 
         if (!$shipment) {
-            return redirect()->back()->with('error', 'Nomor resi ' . $shipmentNumber . ' tidak ditemukan.');
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Nomor resi ' . $shipmentNumber . ' tidak ditemukan.');
         }
 
-        return redirect('/track/' . $shipmentNumber);
+        return redirect('/track/' . $shipment->shipment_number);
     }
 
     /**
@@ -169,10 +173,82 @@ class ShipmentController extends Controller
             'volume' => $request->volume,
             'expected_departure_date' => $request->expected_departure_date,
             'expected_arrival_date' => $request->expected_arrival_date,
-            'status' => 'In Transit', // Menyesuaikan default status agar terbaca di filter
+            'status' => 'In Transit',
         ]);
 
         return redirect('/shipments')->with('success', 'Pengiriman baru berhasil ditambahkan.');
+    }
+
+    /**
+     * Memperbarui status pengiriman oleh Logistics Operator
+     */
+    public function operatorUpdateStatus(Request $request, $id)
+    {
+        $shipment = Shipment::findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|in:Created,In Transit,Delivered',
+        ]);
+
+        $shipment->update([
+            'status' => $request->status,
+        ]);
+
+        return redirect()->back()->with('success', 'Status pengiriman berhasil diperbarui menjadi ' . $request->status . '.');
+    }
+
+    /**
+     * Menambahkan catatan Tracking Event baru oleh Logistics Operator
+     */
+    public function storeTrackingEvent(Request $request, $id)
+    {
+        $shipment = Shipment::findOrFail($id);
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'location_name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $columns = Schema::getColumnListing('tracking_events');
+        $data = [
+            'shipment_id' => $shipment->id,
+        ];
+
+        if (in_array('created_by', $columns)) {
+            $data['created_by'] = Auth::id();
+        }
+        if (in_array('title', $columns)) {
+            $data['title'] = $request->title;
+        }
+        if (in_array('status', $columns)) {
+            $data['status'] = $request->title;
+        }
+        if (in_array('event_name', $columns)) {
+            $data['event_name'] = $request->title;
+        }
+        if (in_array('location_name', $columns)) {
+            $data['location_name'] = $request->location_name;
+        }
+        if (in_array('location', $columns)) {
+            $data['location'] = $request->location_name;
+        }
+        if (in_array('description', $columns)) {
+            $data['description'] = $request->description;
+        }
+        if (in_array('notes', $columns)) {
+            $data['notes'] = $request->description;
+        }
+        if (in_array('event_time', $columns)) {
+            $data['event_time'] = now();
+        }
+        if (in_array('occurred_at', $columns)) {
+            $data['occurred_at'] = now();
+        }
+
+        TrackingEvent::create($data);
+
+        return redirect()->back()->with('success', 'Tracking event baru berhasil ditambahkan.');
     }
 
     /**
