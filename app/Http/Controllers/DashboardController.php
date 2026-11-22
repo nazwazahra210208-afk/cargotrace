@@ -23,8 +23,9 @@ class DashboardController extends Controller
             $deliveredCount = Shipment::where('user_id', $user->id)->where('status', 'Delivered')->count();
             
             // Query riwayat kiriman milik customer dengan dukungan filter status
-            $query = Shipment::where('user_id', $user->id);
-            if ($request->has('status')) {
+            $query = Shipment::with(['carrier', 'originLocation', 'destinationLocation'])
+                ->where('user_id', $user->id);
+            if ($request->has('status') && !empty($request->status)) {
                 $query->where('status', $request->status);
             }
             $myShipments = $query->latest()->get();
@@ -43,8 +44,8 @@ class DashboardController extends Controller
         $inTransitCount = Shipment::where('status', 'In Transit')->count();
         $deliveredCount = Shipment::where('status', 'Delivered')->count();
         
-        $query = Shipment::query();
-        if ($request->has('status')) {
+        $query = Shipment::with(['carrier', 'originLocation', 'destinationLocation']);
+        if ($request->has('status') && !empty($request->status)) {
             $query->where('status', $request->status);
         }
         $myShipments = $query->latest()->get();

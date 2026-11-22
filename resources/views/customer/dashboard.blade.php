@@ -30,7 +30,7 @@
                 <div class="flex space-x-2 text-sm bg-white/90 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-inner font-semibold">
                     <a href="{{ route('admin.lang', 'id') }}" class="{{ session('locale', 'id') == 'id' ? 'text-blue-900 underline' : 'text-slate-400' }}">ID</a>
                     <span class="text-blue-200">|</span>
-                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'en', 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
+                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
                 </div>
 
                 <!-- Logout Form -->
@@ -46,6 +46,12 @@
 
     <!-- Content Container -->
     <div class="container mx-auto p-6 space-y-8 relative z-10">
+
+        @if(session('error'))
+            <div class="bg-red-50 border border-red-300 text-red-800 px-5 py-4 rounded-2xl text-sm font-semibold shadow-sm">
+                {{ session('error') }}
+            </div>
+        @endif
         
         <!-- Welcome Banner -->
         <div class="light-glass rounded-2xl p-8 shadow-lg border-l-8 border-blue-900 flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -70,17 +76,21 @@
             </h3>
             <form action="{{ url('/track/search') }}" method="POST" class="flex flex-col md:flex-row gap-4">
                 @csrf
-                <input type="text" name="tracking_number" placeholder="{{ session('locale') == 'en' ? 'Enter tracking number (e.g., CT-2026-XXXX)' : 'Masukkan nomor resi (contoh: CT-2026-XXXX)' }}" required class="flex-1 bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-700 shadow-inner font-medium">
+                <input type="text" name="shipment_number" placeholder="{{ session('locale') == 'en' ? 'Enter tracking number (e.g., CRG-2026-001)' : 'Masukkan nomor resi (contoh: CRG-2026-001)' }}" required class="flex-1 bg-white/95 border border-blue-200 rounded-xl px-4 py-3 text-sm uppercase font-mono focus:outline-none focus:border-blue-700 shadow-inner font-medium">
                 <button type="submit" class="bg-blue-950 hover:bg-blue-900 text-white px-8 py-3 rounded-xl text-sm font-bold transition shadow-md">
                     {{ session('locale') == 'en' ? 'Track Cargo' : 'Lacak Kargo' }}
                 </button>
             </form>
         </div>
 
-        <!-- Statistik Ringkasan Pengiriman Customer (Bisa Diklik) -->
+        @php
+            $activeStatus = request('status');
+        @endphp
+
+        <!-- Statistik Ringkasan Pengiriman Customer (Bisa Diklik untuk Filter Tabel) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Kartu 1: Total Kiriman -->
-            <a href="{{ url('/dashboard') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border border-blue-200 hover:border-blue-500 hover:scale-[1.02] transition cursor-pointer group">
+            <a href="{{ url('/dashboard#riwayat-pengiriman') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border transition cursor-pointer group {{ empty($activeStatus) ? 'border-blue-900 ring-2 ring-blue-900/20' : 'border-blue-200 hover:border-blue-500 hover:scale-[1.02]' }}">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'Total Shipments' : 'Total Pengiriman' }}</p>
                     <h3 class="text-4xl font-black text-blue-950 mt-2">{{ $totalShipments ?? 0 }}</h3>
@@ -89,7 +99,7 @@
             </a>
 
             <!-- Kartu 2: Dalam Perjalanan (In Transit) -->
-            <a href="{{ url('/dashboard?status=In+Transit') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border border-blue-200 hover:border-blue-500 hover:scale-[1.02] transition cursor-pointer group">
+            <a href="{{ url('/dashboard?status=In+Transit#riwayat-pengiriman') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border transition cursor-pointer group {{ $activeStatus === 'In Transit' ? 'border-blue-900 ring-2 ring-blue-900/20' : 'border-blue-200 hover:border-blue-500 hover:scale-[1.02]' }}">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'In Transit' : 'Dalam Perjalanan' }}</p>
                     <h3 class="text-4xl font-black text-blue-950 mt-2">{{ $inTransitCount ?? 0 }}</h3>
@@ -98,7 +108,7 @@
             </a>
 
             <!-- Kartu 3: Selesai (Delivered) -->
-            <a href="{{ url('/dashboard?status=Delivered') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border border-blue-200 hover:border-blue-500 hover:scale-[1.02] transition cursor-pointer group">
+            <a href="{{ url('/dashboard?status=Delivered#riwayat-pengiriman') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between border transition cursor-pointer group {{ $activeStatus === 'Delivered' ? 'border-blue-900 ring-2 ring-blue-900/20' : 'border-blue-200 hover:border-blue-500 hover:scale-[1.02]' }}">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'Delivered' : 'Selesai / Tiba' }}</p>
                     <h3 class="text-4xl font-black text-blue-950 mt-2">{{ $deliveredCount ?? 0 }}</h3>
@@ -108,11 +118,24 @@
         </div>
 
         <!-- Tabel Daftar Kiriman Milik Customer -->
-        <div class="light-glass rounded-2xl p-6 shadow-md border border-blue-200 overflow-hidden">
-            <h3 class="text-lg font-extrabold text-blue-950 mb-4 flex items-center space-x-2">
-                <span>📋</span>
-                <span>{{ session('locale') == 'en' ? 'My Cargo Shipments History' : 'Riwayat Pengiriman Kargo Saya' }}</span>
-            </h3>
+        <div id="riwayat-pengiriman" class="light-glass rounded-2xl p-6 shadow-md border border-blue-200 overflow-hidden">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h3 class="text-lg font-extrabold text-blue-950 flex items-center space-x-2">
+                    <span>📋</span>
+                    <span>
+                        {{ session('locale') == 'en' ? 'My Cargo Shipments History' : 'Riwayat Pengiriman Kargo Saya' }}
+                        @if(!empty($activeStatus))
+                            <span class="text-xs font-bold bg-blue-100 text-blue-900 px-2.5 py-1 rounded-full ml-2">Filter: {{ $activeStatus }}</span>
+                        @endif
+                    </span>
+                </h3>
+                @if(!empty($activeStatus))
+                    <a href="{{ url('/dashboard#riwayat-pengiriman') }}" class="text-xs font-bold text-blue-900 hover:underline">
+                        {{ session('locale') == 'en' ? 'Show All' : 'Tampilkan Semua' }}
+                    </a>
+                @endif
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
@@ -121,29 +144,37 @@
                             <th class="p-4">{{ session('locale') == 'en' ? 'ROUTE (ORIGIN → DESTINATION)' : 'RUTE (ASAL → TUJUAN)' }}</th>
                             <th class="p-4">CARRIER</th>
                             <th class="p-4">STATUS</th>
-                            <th class="p-4 rounded-r-xl">ETA</th>
+                            <th class="p-4">ETA</th>
+                            <th class="p-4 rounded-r-xl text-right">{{ session('locale') == 'en' ? 'ACTION' : 'AKSI' }}</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-slate-700 divide-y divide-blue-100">
                         @forelse($myShipments ?? [] as $shipment)
                             <tr class="hover:bg-blue-50/60 transition">
                                 <td class="p-4 font-mono text-xs text-blue-900 font-bold">
-                                    <a href="{{ url('/track/' . $shipment->tracking_number) }}" class="underline hover:text-blue-700">
-                                        {{ $shipment->tracking_number }}
+                                    <a href="{{ url('/track/' . $shipment->shipment_number) }}" class="underline hover:text-blue-700">
+                                        {{ $shipment->shipment_number }}
                                     </a>
                                 </td>
-                                <td class="p-4 font-semibold text-slate-900">{{ $shipment->origin ?? '-' }} → {{ $shipment->destination ?? '-' }}</td>
+                                <td class="p-4 font-semibold text-slate-900">
+                                    {{ $shipment->originLocation->name ?? '-' }} → {{ $shipment->destinationLocation->name ?? '-' }}
+                                </td>
                                 <td class="p-4 text-slate-600 font-medium">{{ $shipment->carrier->name ?? '-' }}</td>
                                 <td class="p-4">
                                     <span class="bg-blue-100 text-blue-900 border border-blue-300 px-3 py-1 rounded-md text-xs font-mono font-bold shadow-sm">
-                                        {{ $shipment->status ?? 'Pending' }}
+                                        {{ $shipment->status ?? 'Created' }}
                                     </span>
                                 </td>
-                                <td class="p-4 text-xs text-slate-500 font-medium">{{ $shipment->eta ?? '-' }}</td>
+                                <td class="p-4 text-xs text-slate-500 font-medium">{{ $shipment->expected_arrival_date ?? '-' }}</td>
+                                <td class="p-4 text-right">
+                                    <a href="{{ url('/track/' . $shipment->shipment_number) }}" class="inline-block bg-blue-950 hover:bg-blue-900 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm">
+                                        {{ session('locale') == 'en' ? 'Track & Map' : 'Lacak & Peta' }}
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="p-8 text-center text-slate-400 italic">
+                                <td colspan="6" class="p-8 text-center text-slate-400 italic">
                                     {{ session('locale') == 'en' ? 'No shipment history found under your account.' : 'Belum ada riwayat pengiriman kargo yang terdaftar di akun Anda.' }}
                                 </td>
                             </tr>

@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use App\Models\Carrier;
 use App\Models\Location;
-use App\Models\AuditLog; // Sesuaikan dengan model audit log Abang jika ada
+use App\Models\AuditLog;
 
 class AdminController extends Controller
 {
@@ -17,14 +18,18 @@ class AdminController extends Controller
         $totalCustomers = User::where('role', 'customer')->count();
         $totalCarriers = Carrier::count();
         $totalLocations = Location::count();
-        $auditLogs = []; // Atau AuditLog::latest()->take(5)->get(); jika sudah ada tabelnya
+
+        $auditLogs = collect();
+        if (Schema::hasTable('audit_logs')) {
+            $auditLogs = AuditLog::with('user')->latest()->take(15)->get();
+        }
 
         return view('admin.dashboard', compact(
-            'totalUsers', 
-            'totalOperators', 
-            'totalCustomers', 
-            'totalCarriers', 
-            'totalLocations', 
+            'totalUsers',
+            'totalOperators',
+            'totalCustomers',
+            'totalCarriers',
+            'totalLocations',
             'auditLogs'
         ));
     }

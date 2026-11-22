@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shipment;
 use App\Models\TrackingEvent;
+use App\Models\AuditLog;
 use App\Services\WeatherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,21 @@ use Illuminate\Support\Facades\Schema;
 
 class ShipmentController extends Controller
 {
+    /**
+     * Helper internal untuk mencatat aktivitas ke tabel audit_logs
+     */
+    private function logAudit(string $action, string $targetEntity, ?string $details = null): void
+    {
+        if (Auth::check() && Schema::hasTable('audit_logs')) {
+            AuditLog::create([
+                'user_id' => Auth::id(),
+                'action' => $action,
+                'target_entity' => $targetEntity,
+                'details' => $details,
+            ]);
+        }
+    }
+
     /**
      * Menampilkan daftar seluruh pengiriman (untuk Operator dengan dukungan filter status)
      */
@@ -162,7 +178,7 @@ class ShipmentController extends Controller
             'expected_arrival_date' => 'required|date|after_or_equal:expected_departure_date',
         ]);
 
-        Shipment::create([
+        $shipment = Shipment::create([
             'shipment_number' => strtoupper(trim($request->shipment_number)),
             'user_id' => $request->user_id,
             'carrier_id' => $request->carrier_id,
@@ -175,6 +191,8 @@ class ShipmentController extends Controller
             'expected_arrival_date' => $request->expected_arrival_date,
             'status' => 'In Transit',
         ]);
+
+        $this->logAudit('CREATE', 'Shipment', 'Operator membuat pengiriman baru ' . $shipment->shipment_number);
 
         return redirect('/shipments')->with('success', 'Pengiriman baru berhasil ditambahkan.');
     }
@@ -190,9 +208,12 @@ class ShipmentController extends Controller
             'status' => 'required|in:Created,In Transit,Delivered',
         ]);
 
+        $oldStatus = $shipment->status;
         $shipment->update([
             'status' => $request->status,
         ]);
+
+        $this->logAudit('UPDATE', 'Shipment', 'Status ' . $shipment->shipment_number . ' diubah dari ' . $oldStatus . ' menjadi ' . $request->status);
 
         return redirect()->back()->with('success', 'Status pengiriman berhasil diperbarui menjadi ' . $request->status . '.');
     }
@@ -248,6 +269,8 @@ class ShipmentController extends Controller
 
         TrackingEvent::create($data);
 
+        $this->logAudit('CREATE', 'TrackingEvent', 'Menambah tracking event "' . $request->title . '" pada ' . $shipment->shipment_number);
+
         return redirect()->back()->with('success', 'Tracking event baru berhasil ditambahkan.');
     }
 
@@ -269,7 +292,7 @@ class ShipmentController extends Controller
             'expected_arrival_date' => 'required|date|after_or_equal:expected_departure_date',
         ]);
 
-        Shipment::create([
+        $shipment = Shipment::create([
             'shipment_number' => strtoupper(trim($request->shipment_number)),
             'user_id' => $request->user_id,
             'carrier_id' => $request->carrier_id,
@@ -282,6 +305,8 @@ class ShipmentController extends Controller
             'expected_arrival_date' => $request->expected_arrival_date,
             'status' => 'In Transit',
         ]);
+
+        $this->logAudit('CREATE', 'Shipment', 'Admin membuat pengiriman baru ' . $shipment->shipment_number);
 
         return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil ditambahkan.');
     }
@@ -326,6 +351,8 @@ class ShipmentController extends Controller
             'status' => $request->status,
         ]);
 
+        $this->logAudit('UPDATE', 'Shipment', 'Admin memperbarui data pengiriman ' . $shipment->shipment_number);
+
         return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil diperbarui.');
     }
 
@@ -335,7 +362,10 @@ class ShipmentController extends Controller
     public function destroy($id)
     {
         $shipment = Shipment::findOrFail($id);
+        $number = $shipment->shipment_number;
         $shipment->delete();
+
+        $this->logAudit('DELETE', 'Shipment', 'Admin menghapus pengiriman ' . $number);
 
         return redirect()->route('admin.shipments.index')->with('success', 'Data pengiriman berhasil dihapus.');
     }

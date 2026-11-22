@@ -6,7 +6,6 @@
     <title>{{ session('locale') == 'en' ? 'Admin Dashboard - CargoTrace' : 'Dashboard Admin - CargoTrace' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Efek kaca terang yang mewah dan bersih */
         .light-glass {
             background: rgba(255, 255, 255, 0.90);
             backdrop-filter: blur(16px);
@@ -28,7 +27,7 @@
                 <div class="flex space-x-2 text-sm bg-white/90 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-inner font-semibold">
                     <a href="{{ route('admin.lang', 'id') }}" class="{{ session('locale', 'id') == 'id' ? 'text-blue-900 underline' : 'text-slate-400' }}">ID</a>
                     <span class="text-blue-200">|</span>
-                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'en' , 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
+                    <a href="{{ route('admin.lang', 'en') }}" class="{{ session('locale', 'id') == 'en' ? 'text-blue-900 underline' : 'text-slate-400' }}">EN</a>
                 </div>
                 <!-- Logout Form -->
                 <form action="/logout" method="POST" class="inline">
@@ -59,9 +58,8 @@
             </div>
         </div>
 
-        <!-- Statistik Pengguna (Cards Interaktif Sesuai Tempatnya) -->
+        <!-- Statistik Pengguna -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Kartu 1: Total Users -->
             <a href="{{ route('admin.users.index') }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between hover:border-blue-700 hover:shadow-xl transition duration-300 group">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'Total Users' : 'Total Pengguna' }}</p>
@@ -70,7 +68,6 @@
                 <div class="bg-blue-100 border border-blue-300 p-4 rounded-2xl text-blue-900 text-2xl group-hover:scale-110 transition shadow-inner">👥</div>
             </a>
 
-            <!-- Kartu 2: Logistics Operators (Mengarah ke User dengan Filter Operator) -->
             <a href="{{ route('admin.users.index', ['role' => 'operator']) }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between hover:border-blue-700 hover:shadow-xl transition duration-300 group">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'Logistics Operators' : 'Operator Logistik' }}</p>
@@ -79,7 +76,6 @@
                 <div class="bg-blue-100 border border-blue-300 p-4 rounded-2xl text-blue-900 text-2xl group-hover:scale-110 transition shadow-inner">🛠️</div>
             </a>
 
-            <!-- Kartu 3: Active Customers (Mengarah ke User dengan Filter Customer) -->
             <a href="{{ route('admin.users.index', ['role' => 'customer']) }}" class="light-glass p-6 rounded-2xl shadow-md flex items-center justify-between hover:border-blue-700 hover:shadow-xl transition duration-300 group">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-blue-900 font-bold group-hover:text-blue-700 transition">{{ session('locale') == 'en' ? 'Active Customers' : 'Customer Aktif' }}</p>
@@ -89,7 +85,7 @@
             </a>
         </div>
 
-        <!-- Tombol Pintasan (Quick Configuration Shortcuts) dengan Nuansa Biru Elegan -->
+        <!-- Tombol Pintasan -->
         <div class="light-glass rounded-2xl p-6 shadow-md border border-blue-200">
             <h3 class="text-lg font-extrabold text-blue-950 mb-4 flex items-center space-x-2">
                 <span>⚙️</span>
@@ -127,7 +123,9 @@
                         <tr class="bg-blue-950 text-blue-100 uppercase text-xs border-b border-blue-900">
                             <th class="p-4 rounded-l-xl">ID</th>
                             <th class="p-4">{{ session('locale') == 'en' ? 'Actor / User' : 'Aktor / Pengguna' }}</th>
-                            <th class="p-4">{{ session('locale') == 'en' ? 'Action Performed' : 'Aksi Dilakukan' }}</th>
+                            <th class="p-4">{{ session('locale') == 'en' ? 'Action' : 'Aksi' }}</th>
+                            <th class="p-4">{{ session('locale') == 'en' ? 'Target' : 'Entitas Target' }}</th>
+                            <th class="p-4">{{ session('locale') == 'en' ? 'Details' : 'Keterangan' }}</th>
                             <th class="p-4 rounded-r-xl">{{ session('locale') == 'en' ? 'Timestamp' : 'Waktu' }}</th>
                         </tr>
                     </thead>
@@ -136,12 +134,18 @@
                             <tr class="hover:bg-blue-50/60 transition">
                                 <td class="p-4 font-mono text-xs text-blue-900 font-bold">#{{ $log->id }}</td>
                                 <td class="p-4 font-semibold text-slate-900">{{ $log->user->name ?? 'System' }}</td>
-                                <td class="p-4"><span class="bg-blue-100 text-blue-900 border border-blue-300 px-3 py-1 rounded-md text-xs font-mono font-semibold shadow-sm">{{ $log->action }}</span></td>
+                                <td class="p-4">
+                                    <span class="bg-blue-100 text-blue-900 border border-blue-300 px-3 py-1 rounded-md text-xs font-mono font-semibold shadow-sm">
+                                        {{ $log->action }}
+                                    </span>
+                                </td>
+                                <td class="p-4 font-mono text-xs font-bold text-slate-700">{{ $log->target_entity ?? '-' }}</td>
+                                <td class="p-4 text-xs text-slate-600">{{ $log->details ?? '-' }}</td>
                                 <td class="p-4 text-xs text-slate-500 font-medium">{{ $log->created_at }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="p-8 text-center text-slate-400 italic">
+                                <td colspan="6" class="p-8 text-center text-slate-400 italic">
                                     {{ session('locale') == 'en' ? 'No recent audit logs recorded.' : 'Belum ada catatan audit log yang terekam.' }}
                                 </td>
                             </tr>

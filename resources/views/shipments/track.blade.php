@@ -173,6 +173,33 @@
                         </div>
                     </form>
                 </div>
+
+                <!-- Form Catat Kendala / Exception oleh Operator -->
+                <div class="lg:col-span-3 light-glass rounded-2xl p-6 shadow-md border border-amber-300 space-y-4">
+                    <h3 class="text-base font-extrabold text-amber-950 flex items-center space-x-2">
+                        <span>⚠️</span>
+                        <span>{{ session('locale', 'id') == 'en' ? 'Report Operational Exception' : 'Catat Kendala Operasional (Exception)' }}</span>
+                    </h3>
+                    <form action="{{ url('/shipments/' . $shipment->id . '/exceptions') }}" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        @csrf
+                        <input type="text" name="exception_type" required placeholder="{{ session('locale', 'id') == 'en' ? 'Exception type (e.g. Weather Delay / Customs)' : 'Jenis kendala (mis. Cuaca Buruk / Pemeriksaan Bea Cukai)' }}"
+                            class="rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600">
+
+                        <select name="severity" required class="rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600">
+                            <option value="LOW">LOW</option>
+                            <option value="MEDIUM" selected>MEDIUM</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="CRITICAL">CRITICAL</option>
+                        </select>
+
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow transition">
+                            {{ session('locale', 'id') == 'en' ? 'Submit Exception' : 'Simpan Kendala' }}
+                        </button>
+
+                        <input type="text" name="description" required placeholder="{{ session('locale', 'id') == 'en' ? 'Describe the issue and impact on shipment...' : 'Jelaskan detail kendala dan dampaknya terhadap pengiriman...' }}"
+                            class="md:col-span-3 rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600">
+                    </form>
+                </div>
             </div>
         @endif
 
@@ -338,13 +365,18 @@
                     <div class="space-y-4">
                         @foreach($shipment->exceptions as $exc)
                             @php
-                                $excTitle = $exc->title ?? $exc->reason ?? $exc->exception_type ?? (session('locale', 'id') == 'en' ? 'Operational Issue' : 'Kendala Pengiriman');
+                                $excTitle = $exc->exception_type ?? $exc->title ?? $exc->reason ?? (session('locale', 'id') == 'en' ? 'Operational Issue' : 'Kendala Pengiriman');
                                 $excDesc = $exc->description ?? $exc->notes ?? $exc->details ?? '';
-                                $isResolved = !empty($exc->resolved_at) || (($exc->status ?? '') === 'resolved');
+                                $isResolved = !empty($exc->resolved) || !empty($exc->resolved_at) || (($exc->status ?? '') === 'resolved');
                             @endphp
                             <div class="bg-amber-50/80 border border-amber-200 rounded-xl p-4 space-y-1.5">
                                 <div class="flex flex-wrap justify-between items-center gap-2">
-                                    <h4 class="font-extrabold text-amber-950 text-sm">{{ $excTitle }}</h4>
+                                    <h4 class="font-extrabold text-amber-950 text-sm">
+                                        {{ $excTitle }}
+                                        @if(!empty($exc->severity))
+                                            <span class="ml-1 text-[10px] font-mono bg-white border border-amber-300 text-amber-900 px-2 py-0.5 rounded">{{ $exc->severity }}</span>
+                                        @endif
+                                    </h4>
                                     <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full {{ $isResolved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200 text-amber-950' }}">
                                         {{ $isResolved
                                             ? (session('locale', 'id') == 'en' ? 'Resolved' : 'Selesai Ditangani')
