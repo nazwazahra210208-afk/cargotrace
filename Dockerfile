@@ -10,6 +10,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache \
+    && composer install --no-dev --optimize-autoloader --no-interaction
 
-CMD sh -c "php artisan config:clear && php artisan route:clear && php artisan migrate --force && php -S 0.0.0.0:${PORT:-8080} -t public"
+CMD ["sh", "-c", "php artisan config:clear && php artisan route:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
