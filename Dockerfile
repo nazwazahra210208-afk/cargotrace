@@ -14,4 +14,4 @@ RUN mkdir -p storage/framework/sessions storage/framework/views storage/framewor
     && chmod -R 775 storage bootstrap/cache \
     && composer install --no-dev --optimize-autoloader --no-interaction
 
-CMD ["sh", "-c", "php artisan config:clear && php artisan route:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+CMD sh -c "php artisan config:clear && php artisan route:clear && php artisan migrate --force && exec php -S 0.0.0.0:${PORT:-8080} -t public"
