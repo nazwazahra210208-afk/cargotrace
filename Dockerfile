@@ -12,6 +12,7 @@ COPY . .
 
 RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache storage/logs bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
+    && chmod +x start.sh \
     && composer install --no-dev --optimize-autoloader --no-interaction
 
-CMD sh -c "php artisan config:clear && php artisan route:clear && php artisan migrate --force && exec php -S 0.0.0.0:${PORT:-8080} -t public"
+CMD ["/bin/sh", "./start.sh"]
